@@ -1,12 +1,12 @@
 package com.github.jefesimpson.controller;
 
 import com.github.jefesimpson.model.User;
-import com.github.jefesimpson.service.UserServiceFunction;
+import com.github.jefesimpson.service.UserService;
 import io.javalin.http.Context;
 import io.javalin.http.UnauthorizedResponse;
 
 public interface AuthorizationController<T> extends Controller<T> {
-    UserServiceFunction userServiceFunction();
+    UserService userServiceFunction();
     default User sender(Context context){
         if(!context.basicAuthCredentialsExist()){
             return null;

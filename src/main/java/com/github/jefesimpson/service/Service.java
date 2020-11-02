@@ -10,7 +10,6 @@ public interface Service <T> {
 
     default void create(T modelObject) throws SQLException {
         dao().create(modelObject);
-        System.out.println("Clear");
     }
     default List<T> all() throws SQLException {
         return dao().queryForAll();

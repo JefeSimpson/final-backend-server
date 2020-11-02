@@ -5,13 +5,13 @@ import com.github.jefesimpson.model.ModelAccess;
 import com.fasterxml.jackson.databind.Module;
 import java.util.Map;
 
-public class ModelAccessMapper implements Mapper {
+public class ModelAccessMapperFactory implements MapperFactory {
     private Map<ModelAccess, Module> access;
 
-    public ModelAccessMapper() {
+    public ModelAccessMapperFactory() {
     }
 
-    public ModelAccessMapper(Map<ModelAccess, Module> access) {
+    public ModelAccessMapperFactory(Map<ModelAccess, Module> access) {
         this.access = access;
     }
 

@@ -1,9 +1,8 @@
 package com.github.jefesimpson;
 
 import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.github.jefesimpson.config.ModelAccessMapper;
+import com.github.jefesimpson.config.ModelAccessMapperFactory;
 import com.github.jefesimpson.controller.BlogController;
 import com.github.jefesimpson.controller.Controller;
 import com.github.jefesimpson.controller.UserController;
@@ -12,14 +11,12 @@ import com.github.jefesimpson.deserializer.UserDeserializer;
 import com.github.jefesimpson.model.Blog;
 import com.github.jefesimpson.model.ModelAccess;
 import com.github.jefesimpson.model.User;
-import com.github.jefesimpson.model.UserRole;
 import com.github.jefesimpson.serializer.BlogSerializer;
 import com.github.jefesimpson.serializer.UserSerializer;
 import com.github.jefesimpson.service.BlogService;
 import com.github.jefesimpson.service.Service;
-import com.github.jefesimpson.service.UserService;
+import com.github.jefesimpson.service.BasicUserService;
 import io.javalin.Javalin;
-import io.javalin.core.JavalinConfig;
 
 import java.util.*;
 
@@ -27,7 +24,9 @@ import static io.javalin.apibuilder.ApiBuilder.*;
 
 public class Main {
     public static void main(String[] args) {
-        Javalin app = Javalin.create();
+        Javalin app = Javalin.create(javalinConfig -> {
+            javalinConfig.defaultContentType = "application/json";
+        });
 
 
         SimpleModule module = new SimpleModule();
@@ -40,13 +39,13 @@ public class Main {
         access.put(ModelAccess.CREATE, module);
         access.put(ModelAccess.READ, module);
         access.put(ModelAccess.UPDATE, module);
-        ModelAccessMapper modelAccessMapper = new ModelAccessMapper(access);
+        ModelAccessMapperFactory modelAccessMapper = new ModelAccessMapperFactory(access);
 
 
-        UserService userService = new UserService();
+        BasicUserService basicUserService = new BasicUserService();
         Service<Blog> blogService = new BlogService();
-        Controller<User> userController = new UserController(userService, modelAccessMapper);
-        Controller<Blog> blogController = new BlogController(userService, modelAccessMapper, blogService);
+        Controller<User> userController = new UserController(basicUserService, modelAccessMapper);
+        Controller<Blog> blogController = new BlogController(basicUserService, modelAccessMapper, blogService);
 
 
         app.routes(() -> {

@@ -2,10 +2,10 @@ package com.github.jefesimpson.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jefesimpson.config.Constants;
-import com.github.jefesimpson.config.Mapper;
+import com.github.jefesimpson.config.MapperFactory;
 import com.github.jefesimpson.model.ModelAccess;
 import com.github.jefesimpson.model.User;
-import com.github.jefesimpson.service.UserServiceFunction;
+import com.github.jefesimpson.service.UserService;
 import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import io.javalin.http.ForbiddenResponse;
@@ -14,28 +14,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class UserController implements AuthorizationController<User> {
     private final static Logger LOGGER = LoggerFactory.getLogger(UserController.class);
-    private final UserServiceFunction userServiceFunction;
-    private final Mapper mapper;
+    private final UserService userService;
+    private final MapperFactory mapperFactory;
 
-    public UserController(UserServiceFunction userServiceFunction, Mapper mapper) {
-        this.userServiceFunction = userServiceFunction;
-        this.mapper = mapper;
+    public UserController(UserService userService, MapperFactory mapperFactory) {
+        this.userService = userService;
+        this.mapperFactory = mapperFactory;
     }
 
     @Override
     public void create(Context context) {
         try {
             User user = sender(context);
-            User target = mapper.objectMapper(ModelAccess.CREATE).readValue(context.body(), User.class);
+            User target = mapperFactory.objectMapper(ModelAccess.CREATE).readValue(context.body(), User.class);
             LOGGER.info(String.format("Sender {%s} started to create user {%s} ", user, target));
-            if(userServiceFunction.access(user, target).contains(ModelAccess.CREATE)){
-                userServiceFunction.create(target);
+            if(userService.access(user, target).contains(ModelAccess.CREATE)){
+                userService.create(target);
                 context.status(Constants.CREATED_201);
                 LOGGER.info(String.format("Sender {%s} successfully created user {%s} ", user, target));
             }
@@ -53,11 +52,11 @@ public class UserController implements AuthorizationController<User> {
     public void delete(Context context, int id) {
         try {
             User user = senderOrThrowUnauthorized(context);
-            User target = userServiceFunction.findById(id);
+            User target = userService.findById(id);
             LOGGER.info(String.format("Sender {%s} started to delete user {%s} ", user, target));
 
-            if(userServiceFunction.access(user, target).contains(ModelAccess.DELETE)){
-                userServiceFunction.deleteById(id);
+            if(userService.access(user, target).contains(ModelAccess.DELETE)){
+                userService.deleteById(id);
                 LOGGER.info(String.format("Sender {%s} successfully deleted user {%s} ", user, target));
                 context.status(Constants.NO_CONTENT_204);
             }
@@ -75,17 +74,17 @@ public class UserController implements AuthorizationController<User> {
     public void update(Context context, int id) {
         try {
             User user = senderOrThrowUnauthorized(context);
-            User target = userServiceFunction.findById(id);
+            User target = userService.findById(id);
             LOGGER.info(String.format("Sender {%s} started to update user {%s} ", user, target));
 
-            if(userServiceFunction.access(user,target).contains(ModelAccess.UPDATE)){
-                context.result(mapper.objectMapper(ModelAccess.UPDATE).writeValueAsString(target));
+            if(userService.access(user,target).contains(ModelAccess.UPDATE)){
+                context.result(mapperFactory.objectMapper(ModelAccess.UPDATE).writeValueAsString(target));
 
-                User updated = mapper.objectMapper(ModelAccess.UPDATE).readValue(context.body(), User.class);
+                User updated = mapperFactory.objectMapper(ModelAccess.UPDATE).readValue(context.body(), User.class);
                 updated.setId(id);
-                userServiceFunction.update(updated);
+                userService.update(updated);
                 LOGGER.info(String.format("Sender {%s} successfully updated user {%s} ", user, target));
-                context.result(mapper.objectMapper(ModelAccess.UPDATE).writeValueAsString(updated));
+                context.result(mapperFactory.objectMapper(ModelAccess.UPDATE).writeValueAsString(updated));
             }
             else{
                 LOGGER.info(String.format("Sender {%s} is not authorized to update user {%s}. Throwing Forbidden", user, target));
@@ -103,12 +102,12 @@ public class UserController implements AuthorizationController<User> {
             User user = senderOrThrowUnauthorized(context);
             LOGGER.info(String.format("Sender {%s} started to getAll", user));
 
-            List<User> users = (List<User>) userServiceFunction.all()
+            List<User> users = (List<User>) userService.all()
                     .stream()
-                    .filter(target -> userServiceFunction.access(user, target).contains(ModelAccess.READ))
+                    .filter(target -> userService.access(user, target).contains(ModelAccess.READ))
                     .collect(Collectors.toList());
             LOGGER.info(String.format("Sender {%s} successfully gotAll", user));
-            context.result(mapper.objectMapper(ModelAccess.READ).writeValueAsString(users));
+            context.result(mapperFactory.objectMapper(ModelAccess.READ).writeValueAsString(users));
         } catch (SQLException | JsonProcessingException e) {
             e.printStackTrace();
             throw new InternalServerErrorResponse();
@@ -119,12 +118,12 @@ public class UserController implements AuthorizationController<User> {
     public void getOne(Context context, int id) {
         try {
             User user = senderOrThrowUnauthorized(context);
-            User target = userServiceFunction.findById(id);
+            User target = userService.findById(id);
             LOGGER.info(String.format("Sender {%s} started to getOne user {%s} ", user, target));
 
-            if(userServiceFunction.access(user, target).contains(ModelAccess.READ)){
+            if(userService.access(user, target).contains(ModelAccess.READ)){
                 LOGGER.info(String.format("Sender {%s} successfully gotOne user {%s} ", user, target));
-                context.result(mapper.objectMapper(ModelAccess.READ).writeValueAsString(target));
+                context.result(mapperFactory.objectMapper(ModelAccess.READ).writeValueAsString(target));
             }
             else{
                 LOGGER.info(String.format("Sender {%s} is not authorized to getOne user {%s}. Throwing Forbidden", user, target));
@@ -138,7 +137,7 @@ public class UserController implements AuthorizationController<User> {
     }
 
     @Override
-    public UserServiceFunction userServiceFunction() {
-        return userServiceFunction;
+    public UserService userServiceFunction() {
+        return userService;
     }
 }

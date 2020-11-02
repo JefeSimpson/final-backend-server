@@ -2,13 +2,12 @@ package com.github.jefesimpson.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jefesimpson.config.Constants;
-import com.github.jefesimpson.config.Mapper;
-import com.github.jefesimpson.config.ModelAccessMapper;
+import com.github.jefesimpson.config.MapperFactory;
 import com.github.jefesimpson.model.Blog;
 import com.github.jefesimpson.model.ModelAccess;
 import com.github.jefesimpson.model.User;
 import com.github.jefesimpson.service.Service;
-import com.github.jefesimpson.service.UserServiceFunction;
+import com.github.jefesimpson.service.UserService;
 import io.javalin.http.BadRequestResponse;
 import io.javalin.http.Context;
 import io.javalin.http.ForbiddenResponse;
@@ -22,37 +21,37 @@ import java.util.stream.Collectors;
 
 public class BlogController implements AuthorizationController<Blog> {
     private final static Logger LOGGER = LoggerFactory.getLogger(BlogController.class);
-    private final UserServiceFunction userServiceFunction;
-    private final Mapper mapper;
+    private final UserService userService;
+    private final MapperFactory mapperFactory;
     private final Service<Blog> blogService;
 
-    public BlogController(UserServiceFunction userServiceFunction, Mapper mapper, Service<Blog> blogService) {
-        this.userServiceFunction = userServiceFunction;
-        this.mapper = mapper;
+    public BlogController(UserService userService, MapperFactory mapperFactory, Service<Blog> blogService) {
+        this.userService = userService;
+        this.mapperFactory = mapperFactory;
         this.blogService = blogService;
     }
 
-    public Mapper getMapper() {
-        return mapper;
+    public MapperFactory getMapper() {
+        return mapperFactory;
     }
 
     public Service<Blog> getBlogService() {
         return blogService;
     }
 
-    public UserServiceFunction getUserServiceFunction() {
-        return userServiceFunction;
+    public UserService getUserServiceFunction() {
+        return userService;
     }
 
     @Override
     public void create(Context context) {
         try {
             User user = senderOrThrowUnauthorized(context);
-            Blog blog = mapper.objectMapper(ModelAccess.CREATE).readValue(context.body(), Blog.class);
+            Blog blog = mapperFactory.objectMapper(ModelAccess.CREATE).readValue(context.body(), Blog.class);
             LOGGER.info(String.format("Sender {%s} started to create blog {%s} ", user, blog));
 
 
-            if(userServiceFunction.access(user, blog).contains(ModelAccess.CREATE)){
+            if(userService.access(user, blog).contains(ModelAccess.CREATE)){
                 blogService.create(blog);
                 LOGGER.info(String.format("Sender {%s} successfully created blog {%s} ", user, blog));
                 context.status(Constants.CREATED_201);
@@ -75,7 +74,7 @@ public class BlogController implements AuthorizationController<Blog> {
             LOGGER.info(String.format("Sender {%s} started to delete blog {%s} ", user, blog));
 
 
-            if (userServiceFunction.access(user, blog).contains(ModelAccess.DELETE)){
+            if (userService.access(user, blog).contains(ModelAccess.DELETE)){
                 blogService.deleteById(id);
                 LOGGER.info(String.format("Sender {%s} successfully deleted blog {%s} ", user, blog));
                 context.status(Constants.NO_CONTENT_204);
@@ -99,13 +98,13 @@ public class BlogController implements AuthorizationController<Blog> {
             Blog blog = blogService.findById(id);
             LOGGER.info(String.format("Sender {%s} started to update blog {%s} ", user, blog));
 
-            if (userServiceFunction.access(user, blog).contains(ModelAccess.UPDATE)){
-                Blog updated = mapper.objectMapper(ModelAccess.UPDATE).readValue(context.body(), Blog.class);
+            if (userService.access(user, blog).contains(ModelAccess.UPDATE)){
+                Blog updated = mapperFactory.objectMapper(ModelAccess.UPDATE).readValue(context.body(), Blog.class);
                 updated.setId(id);
                 blogService.update(updated);
 
                 LOGGER.info(String.format("Sender {%s} successfully updated blog {%s} ", user, blog));
-                context.result(mapper.objectMapper(ModelAccess.UPDATE).writeValueAsString(updated));
+                context.result(mapperFactory.objectMapper(ModelAccess.UPDATE).writeValueAsString(updated));
             }
             else{
                 LOGGER.info(String.format("Sender {%s} is not authorized to update blog {%s}. Throwing Forbidden", user, blog));
@@ -124,10 +123,10 @@ public class BlogController implements AuthorizationController<Blog> {
         try {
             List<Blog> blogs = blogService.all()
                     .stream()
-                    .filter(blog -> userServiceFunction.access(user, blog).contains(ModelAccess.READ))
+                    .filter(blog -> userService.access(user, blog).contains(ModelAccess.READ))
                     .collect(Collectors.toList());
             LOGGER.info(String.format("Sender {%s} successfully gotAll blogs", user));
-            context.result(mapper.objectMapper(ModelAccess.READ).writeValueAsString(blogs));
+            context.result(mapperFactory.objectMapper(ModelAccess.READ).writeValueAsString(blogs));
         } catch (SQLException | JsonProcessingException e) {
             e.printStackTrace();
             throw new InternalServerErrorResponse();
@@ -140,9 +139,9 @@ public class BlogController implements AuthorizationController<Blog> {
             User user = senderOrThrowUnauthorized(context);
             Blog blog = blogService.findById(id);
             LOGGER.info(String.format("Sender {%s} started to getOne blog {%s} ", user, blog));
-            if(userServiceFunction.access(user, blog).contains(ModelAccess.READ)){
+            if(userService.access(user, blog).contains(ModelAccess.READ)){
                 LOGGER.info(String.format("Sender {%s} successfully gotOne blog {%s} ", user, blog));
-                context.result(mapper.objectMapper(ModelAccess.READ).writeValueAsString(blog));
+                context.result(mapperFactory.objectMapper(ModelAccess.READ).writeValueAsString(blog));
             }
             else{
                 LOGGER.info(String.format("Sender {%s} is not authorized to getOne blog {%s}. Throwing Forbidden", user, blog));
@@ -155,7 +154,7 @@ public class BlogController implements AuthorizationController<Blog> {
     }
 
     @Override
-    public UserServiceFunction userServiceFunction() {
-        return userServiceFunction;
+    public UserService userServiceFunction() {
+        return userService;
     }
 }

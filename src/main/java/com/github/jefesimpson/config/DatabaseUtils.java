@@ -10,7 +10,7 @@ import com.j256.ormlite.table.TableUtils;
 import java.sql.SQLException;
 
 public class DatabaseUtils {
-    private static ConnectionSource connectionSource;
+    private final static ConnectionSource connectionSource;
 
 
     static{
